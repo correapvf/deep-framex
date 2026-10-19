@@ -62,7 +62,7 @@ def probe_video(path: Path, utc_start: datetime | None = None) -> VideoFile:
     if not path.exists():
         raise FileNotFoundError(f"Video file not found: {path}")
 
-    with av.open(str(path), metadata_errors="ignore") as container:
+    with av.open(str(path)) as container:
         if utc_start is None:
             creation_time_str = container.metadata.get("creation_time")
 
