@@ -221,9 +221,10 @@ rules:
 #
 # Each entry may also carry these three keys:
 #
-#   time_shift            this file's own sensor_time_shift (see above)
-#   start_time            this file's own sensor_start_time (see above)
-#   interpolation_window  this file's own window (see below)
+#   time_shift               this file's own sensor_time_shift (see above)
+#   start_time               this file's own sensor_start_time (see above)
+#   interpolation_window     this file's own window (see below)
+#   interpolation_tolerance  this file's own tolerancewindow (see below)
 #
 # Each logger had its own clock, so the correction belongs on the file:
 #
@@ -353,6 +354,15 @@ rules:
 # sample rate: 2 rows span about 2 s on a 1 Hz CTD but 20 s on a nav fix that
 # arrives every 10 s.  A file whose readings change fast wants a smaller window
 # than one logged slowly.
+#
+# interpolation_tolerance: 60.0
+#
+# Maximum allowed gap, in seconds, between a frame's timestamp and the nearest
+# sensor reading. If the gap is larger than this, the tool will not interpolate
+# and will leave the frame's sensor values blank.
+# Default is 60.0 s (60 s before + 60 s after).
+# This value is the default for every sensor file, and each entry in a sensors
+# block may override it. 
 
 
 # ---------------------------------------------------------------------------
@@ -432,3 +442,14 @@ rules:
 #
 # xmp_namespace_uri:    https://deep-framex.org/xmp/v1/
 # xmp_namespace_prefix: dfx
+
+
+# ---------------------------------------------------------------------------
+# SUPPRESS WARNINGS (optional)
+# ---------------------------------------------------------------------------
+# If a sampling timestamp lands in a gap between video files, the tool
+# will warn you: "no frame extracted at t=####". If gaps between video
+# files are expected, you can suppress these warnings by setting
+# suppress_time_gap_warnings to true.
+#
+# suppress_time_gap_warnings: true

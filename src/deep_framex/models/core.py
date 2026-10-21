@@ -169,6 +169,7 @@ class ExtractionSpec(CustomBaseModel):
     video_start_times: dict[str, datetime] = {}     # filename -> UTC start time override for unclocked video
     sensor_time_shift: timedelta | None = None      # add this duration to every sensor timestamp
     sensor_start_time: datetime | None = None       # set the earliest sensor reading to this UTC time
+    suppress_time_gap_warnings: bool = False        # don't warn about gaps in sensor data when planning
 
 
 class FrameSpec(CustomBaseModel):

@@ -113,13 +113,14 @@ def plan(
         except ValueError:
             # This timestamp falls in a gap between two video files.
             # Warn the user and skip it — don't abort the whole run.
-            warnings.warn(
-                f"Sampling interval hit a gap in the video session — "
-                f"no frame extracted at {utc.isoformat()}. "
-                "Check for missing video files or adjust initial_offset_s.",
-                UserWarning,
-                stacklevel=2,
-            )
+            if not spec.suppress_time_gap_warnings:
+                warnings.warn(
+                    f"Sampling interval hit a gap in the video session — "
+                    f"no frame extracted at {utc.isoformat()}. "
+                    "Check for missing video files or adjust initial_offset_s.",
+                    UserWarning,
+                    stacklevel=2,
+                )
             continue
 
         # Interpolate each source's readings at this exact timestamp and merge.

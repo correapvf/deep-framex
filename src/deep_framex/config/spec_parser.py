@@ -428,6 +428,8 @@ def spec_from_dict(raw: dict) -> ExtractionSpec:
         kwargs['xmp_namespace_uri'] = xmp_uri
     if xmp_prefix := raw.get('xmp_namespace_prefix'):
         kwargs['xmp_namespace_prefix'] = xmp_prefix
+    if suppress_time_gap_warnings := raw.get('suppress_time_gap_warnings'):
+        kwargs['suppress_time_gap_warnings'] = suppress_time_gap_warnings
 
     return ExtractionSpec(
         rules=rules,
