@@ -101,6 +101,7 @@ class SensorSource(ColumnMappings):
     time_shift: timedelta | None = None     # add this duration to every timestamp in this file
     start_time: datetime | None = None      # set this file's earliest reading to this UTC time
     interpolation_window: int | None = None  # rows per side; None = use the spec-level value
+    interpolation_tolerance: float = None     # seconds per side; None = use the spec-level value
 
 
 class ImportedDataset(CustomBaseModel):
@@ -162,6 +163,7 @@ class ExtractionSpec(CustomBaseModel):
     filename_template: str | None = None            # omit to use default naming
     initial_offset_s: float = 0.0                   # shift the sampling grid this many seconds from session start
     interpolation_window: int = 2                   # number of sensor rows to use on each side when interpolating
+    interpolation_tolerance: float = 60.0           # tolerance in seconds on each side when interpolating
     stream_output: bool = False                     # write each frame to disk immediately instead of buffering per video
     max_workers: int = 1                            # worker processes for extraction; 1 = sequential, >1 = parallel
     video_start_times: dict[str, datetime] = {}     # filename -> UTC start time override for unclocked video

@@ -119,6 +119,33 @@ def _parse_window(value, label: str) -> int:
     return window
 
 
+def _parse_tolerance(value, label: str) -> float:
+    """Parse an interpolation_tolerance value into a positive float.
+
+    Args:
+        value: the raw YAML value.
+        label: how to name the key in error and warning messages.
+
+    Returns:
+        The tolerance as a float, clamped up to 1.
+
+    Raises:
+        ValueError: if the value is not a number.
+    """
+    try:
+        tolerance = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{label} must be a positive number, got {value!r}") from None
+    if tolerance < 1:
+        warnings.warn(
+            f"{label} must be > 0 (got {tolerance}) — setting to 0.1.",
+            UserWarning,
+            stacklevel=3,
+        )
+        tolerance = 0.1
+    return tolerance
+
+
 def spec_from_file(path: Path) -> ExtractionSpec:
     """Parse a YAML config file into an ExtractionSpec.
 
@@ -280,6 +307,11 @@ def spec_from_dict(raw: dict) -> ExtractionSpec:
                 entry['interpolation_window'], f"Sensor {i}: 'interpolation_window'"
             )
 
+        if entry.get('interpolation_tolerance') is not None:
+            entry['interpolation_tolerance'] = _parse_tolerance(
+                entry['interpolation_tolerance'], f"Sensor {i}: 'interpolation_tolerance'"
+            )
+
         sensors.append(SensorSource(**entry))
 
         # Canonical names become columns in one shared snapshot, so two files
@@ -299,6 +331,11 @@ def spec_from_dict(raw: dict) -> ExtractionSpec:
     # interpolation_window — top-level default for sources that omit their own
     interpolation_window = _parse_window(
         raw.get('interpolation_window', 2), "'interpolation_window'"
+    )
+
+    # interpolation_tolerance — top-level default for sources that omit their own
+    interpolation_tolerance = _parse_tolerance(
+        raw.get('interpolation_tolerance', 60.0), "'interpolation_tolerance'"
     )
 
     # initial_offset_s — top-level, must be a non-negative number
@@ -400,6 +437,7 @@ def spec_from_dict(raw: dict) -> ExtractionSpec:
         filename_template=raw.get('filename_template'),
         initial_offset_s=initial_offset_s,
         interpolation_window=interpolation_window,
+        interpolation_tolerance=interpolation_tolerance,
         stream_output=stream_output,
         max_workers=max_workers,
         video_start_times=video_start_times,

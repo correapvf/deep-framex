@@ -86,10 +86,11 @@ def plan(
             f"sensor_readings_{i}",
             sensor_columns(conn, f"sensor_readings_{i}"),
             src.interpolation_window or spec.interpolation_window,
+            src.interpolation_tolerance or spec.interpolation_tolerance,
         )
         for i, src in enumerate(spec.sensors)
     ]
-    col_to_table = {col: table for table, cols, _ in sources for col in cols}
+    col_to_table = {col: table for table, cols, _, _ in sources for col in cols}
 
     # Use a set so that identical timestamps from different rules appear only once.
     # A timestamp claimed by two overlapping rules is deduplicated here — the
@@ -126,10 +127,10 @@ def plan(
         # the files need not share a sample rate or a start time.  Merge order is
         # irrelevant: the spec parser rejects two sources mapping the same name.
         snapshot: dict[str, float] = {}
-        for table, cols, window in sources:
+        for table, cols, window, tolerance in sources:
             if cols:
                 snapshot.update(
-                    interpolate_sensor(utc.timestamp(), cols, conn, window, table)
+                    interpolate_sensor(utc.timestamp(), cols, conn, window, tolerance, table)
                 )
 
         # Keep offset and snapshot together in a FrameSpec — the plan is self-contained
@@ -399,6 +400,7 @@ def interpolate_sensor(
     sensor_cols: list[str],
     conn: sqlite3.Connection,
     window: int = 2,
+    tolerance: float = 60.0,
     table: str = "sensor_readings",
 ) -> dict[str, float]:
     """Interpolate all sensor columns at a Unix epoch timestamp.
@@ -431,16 +433,18 @@ def interpolate_sensor(
 
     # Fetch up to `window` rows on each side of the target timestamp.
     # Using several rows makes the result more stable if one reading is a spike or error.
+    ts_limit = ts - tolerance
     before_rows = conn.execute(
         f'SELECT timestamp, {col_list} FROM "{table}" '
-        "WHERE timestamp <= ? ORDER BY timestamp DESC LIMIT ?",
-        (ts, window),
+        "WHERE timestamp between ? and ? ORDER BY timestamp DESC LIMIT ?",
+        (ts_limit, ts, window),
     ).fetchall()
 
+    ts_limit = ts + tolerance
     after_rows = conn.execute(
         f'SELECT timestamp, {col_list} FROM "{table}" '
-        "WHERE timestamp >= ? ORDER BY timestamp ASC LIMIT ?",
-        (ts, window),
+        "WHERE timestamp between ? and ? ORDER BY timestamp ASC LIMIT ?",
+        (ts, ts_limit, window),
     ).fetchall()
 
     if not before_rows and not after_rows:
