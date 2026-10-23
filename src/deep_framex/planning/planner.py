@@ -92,6 +92,20 @@ def plan(
     ]
     col_to_table = {col: table for table, cols, _, _ in sources for col in cols}
 
+    # Build a set of functions to interpolate each column.
+    # Heading is circular, so it needs a special median and interpolation function.
+    interpolate_functions = {
+        "heading": (_interpolate_heading1,_interpolate_heading2),
+        "dive_id": (lambda x: next(x), lambda x, y, z: next(x)),
+    }
+
+    sources = [
+        source +
+        ([interpolate_functions.get(col, (median, _interpolate_linear2)) for col in source[1]],)
+        for source in sources
+    ]
+    
+
     # Use a set so that identical timestamps from different rules appear only once.
     # A timestamp claimed by two overlapping rules is deduplicated here — the
     # extractor will see it once and write one frame.
@@ -123,15 +137,18 @@ def plan(
                 )
             continue
 
+        # Select functions for interpolation
+
+
         # Interpolate each source's readings at this exact timestamp and merge.
         # Every source is interpolated against its own rows on its own grid, so
         # the files need not share a sample rate or a start time.  Merge order is
         # irrelevant: the spec parser rejects two sources mapping the same name.
         snapshot: dict[str, float] = {}
-        for table, cols, window, tolerance in sources:
+        for table, cols, window, tolerance, funcs in sources:
             if cols:
                 snapshot.update(
-                    interpolate_sensor(utc.timestamp(), cols, conn, window, tolerance, table)
+                    interpolate_sensor(utc.timestamp(), cols, conn, window, tolerance, table, funcs)
                 )
 
         # Keep offset and snapshot together in a FrameSpec — the plan is self-contained
@@ -396,6 +413,46 @@ def sensor_columns(
     ]
 
 
+
+
+def _interpolate_heading1(x):
+    heading_rad = [math.radians(i) for i in x]
+    heading_cos = [math.cos(i) for i in heading_rad]
+    heading_sin = [math.sin(i) for i in heading_rad]
+
+    cos_median = median(heading_cos)
+    sin_median = median(heading_sin)
+    median_heading_rad = math.atan2(sin_median, cos_median)
+
+    return math.degrees(median_heading_rad)
+
+
+def _interpolate_heading2(before, after, alpha):
+    heading_rad = [math.radians(i) for i in before]
+    heading_cos = [math.cos(i) for i in heading_rad]
+    heading_sin = [math.sin(i) for i in heading_rad]
+
+    cos_before = median(heading_cos)
+    sin_before = median(heading_sin)
+
+    heading_rad = [math.radians(i) for i in after]
+    heading_cos = [math.cos(i) for i in heading_rad]
+    heading_sin = [math.sin(i) for i in heading_rad]
+
+    cos_after = median(heading_cos)
+    sin_after = median(heading_sin)
+
+    cos_interp = cos_before + alpha * (cos_after - cos_before)
+    sin_interp = sin_before + alpha * (sin_after - sin_before)
+
+    heading_interp = math.atan2(sin_interp, cos_interp)
+
+    return math.degrees(heading_interp) % 360
+
+def _interpolate_linear2(before, after, alpha):
+    before_median = median(before)
+    return before_median + alpha * (median(after) - before_median)
+
 def interpolate_sensor(
     ts: float,
     sensor_cols: list[str],
@@ -403,6 +460,7 @@ def interpolate_sensor(
     window: int = 2,
     tolerance: float = 60.0,
     table: str = "sensor_readings",
+    funcs: list[tuple] = (median, _interpolate_linear2),
 ) -> dict[str, float]:
     """Interpolate all sensor columns at a Unix epoch timestamp.
 
@@ -461,7 +519,10 @@ def interpolate_sensor(
             UserWarning,
             stacklevel=3,
         )
-        return {col: median(row[i + 1] for row in after_rows) for i, col in enumerate(sensor_cols)}
+        return {
+            col: fn[0](row[i + 1] for row in after_rows)
+            for i, (col, fn) in enumerate(zip(sensor_cols, funcs))
+        }
 
     if not after_rows:
         # Frame is after all sensor data — same situation in the other direction.
@@ -472,7 +533,10 @@ def interpolate_sensor(
             UserWarning,
             stacklevel=3,
         )
-        return {col: median(row[i + 1] for row in before_rows) for i, col in enumerate(sensor_cols)}
+        return {
+            col: fn[0](row[i + 1] for row in before_rows)
+            for i, (col, fn) in enumerate(zip(sensor_cols, funcs))
+        }
 
     # Use the median timestamp and median value of each side as representative points.
     # Median is resistant to individual outliers or jitter in sensor logging frequency.
@@ -483,15 +547,17 @@ def interpolate_sensor(
         # The before and after windows overlap on the same rows — the frame timestamp
         # coincides exactly with a sensor reading.  Deduplicate and take the median.
         unique = list({row[0]: row for row in before_rows + after_rows}.values())
-        return {col: median(row[i + 1] for row in unique) for i, col in enumerate(sensor_cols)}
+        return {
+            col: fn[0](row[i + 1] for row in unique)
+            for i, (col, fn) in enumerate(zip(sensor_cols, funcs))
+        }
 
     # Linear interpolation: alpha = 0 means exactly at t_before, alpha = 1 at t_after.
     alpha = (ts - t_before) / (t_after - t_before)
     return {
-        col: median(row[i + 1] for row in before_rows)
-             + alpha * (median(row[i + 1] for row in after_rows)
-                        - median(row[i + 1] for row in before_rows))
-        for i, col in enumerate(sensor_cols)
+        col: fn[1]((row[i + 1] for row in before_rows),
+                   (row[i + 1] for row in after_rows), alpha)
+        for i, (col, fn) in enumerate(zip(sensor_cols, funcs))
     }
 
 
