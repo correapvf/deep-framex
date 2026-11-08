@@ -24,6 +24,7 @@ from deep_framex.extraction.frame_extractor import decode_frames
 from deep_framex.output.output_frames import write_frame
 from deep_framex.metadata.ifdo import write_ifdo_manifest
 from deep_framex.metadata.biigle import write_biigle_manifest
+from deep_framex.metadata.csv import write_csv_manifest
 
 # BIIGLE assembly from existing frames
 from deep_framex.metadata.assemble import assemble_biigle_records
@@ -60,6 +61,7 @@ __all__ = [
     "write_frame",
     "write_ifdo_manifest",
     "write_biigle_manifest",
+    "write_csv_manifest",
     # BIIGLE assembly
     "assemble_biigle_records",
     "parse_filename_template",

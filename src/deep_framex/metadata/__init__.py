@@ -2,10 +2,12 @@
 
 from .assemble import assemble_biigle_records
 from .biigle import write_biigle_manifest
+from .csv import write_csv_manifest
 from .ifdo import write_ifdo_manifest
 
 __all__ = [
     "assemble_biigle_records",
     "write_biigle_manifest",
+    "write_csv_manifest",
     "write_ifdo_manifest",
 ]
