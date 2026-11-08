@@ -67,7 +67,7 @@ from ..models.core import ExtractedFrame, FrameMetadata
 _DEFAULT_TEMPLATE = "{utc}_{video_stem}.jpg"
 
 # Fixed keys always available in the template context, regardless of sensor data.
-_BUILTIN_KEYS = {"utc", "video_stem", "offset_s", "index", "index1"}
+_BUILTIN_KEYS = {"utc", "utc_s", "video_stem", "offset_s", "index", "index1"}
 
 
 def write_frame(
@@ -246,6 +246,7 @@ def _render_filename(frame: ExtractedFrame, template: str | None, index: int = 0
 
     Template context keys available:
         utc         — compact UTC timestamp string (%Y%m%dT%H%M%S%f)
+        utc_s       — compact UTC timestamp string (%Y%m%dT%H%M%S)
         video_stem  — frame.metadata.video_path.stem
         offset_s    — frame.metadata.offset_s (float)
         index       — zero-based frame number within the video (int)
@@ -270,6 +271,7 @@ def _render_filename(frame: ExtractedFrame, template: str | None, index: int = 0
     context.update(meta.sensor_snapshot)
     context.update(meta.project_metadata)
     context["utc"] = meta.utc_timestamp.strftime("%Y%m%dT%H%M%S%f")
+    context["utc_s"] = meta.utc_timestamp.strftime("%Y%m%dT%H%M%S")
     context["video_stem"] = meta.video_path.stem
     context["offset_s"] = meta.offset_s
     context["index"] = index

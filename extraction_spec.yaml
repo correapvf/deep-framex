@@ -278,6 +278,7 @@ rules:
 #
 # Available variables:
 #   {utc}         — UTC timestamp of the frame (20251115T102530123456)
+#   {utc_s}       — UTC timestamp of the frame, up to seconds (20251115T102530)
 #   {video_stem}  — source video filename without extension
 #   {offset_s}    — seconds from t=0 in the source video
 #   {<key>}       — any canonical sensor key (left-hand side of mappings block)
